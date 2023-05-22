@@ -12,6 +12,8 @@ def clean_text(document):
     Helper function to clean text within Aims, OutlineOfSyllabus, IntendedKnowledgeOutcomes and IntendedSkillOutcomes
     Cleaning is minimal here due to self-attention used in Transformers
     '''
+    if pd.isna(document):
+        return document
     document = str(document)
     document = document.lower() # make lower case
     document = document.replace('\n', ' ')  # remove newline characters
@@ -155,6 +157,7 @@ def main():
     modules.to_pickle(output_path)
 
     logger.info('finished preprocessing ../data/raw/modules.csv, output saved as ../data/interim/modules_pp.pkl')
+
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
