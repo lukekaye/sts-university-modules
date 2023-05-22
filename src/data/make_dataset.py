@@ -33,7 +33,7 @@ def main():
     '''
     Preprocesses raw modules.csv in ../raw
     Deal with IsDummy = True records, discard meaningless fields, standardise string fields and clean natural language
-    Output saved as modules_interim.csv,in ../interim.
+    Output saved as modules_pp.pkl,in ../interim.
     '''
     logger = logging.getLogger(__name__)
     logger.info('preprocessing ../data/raw/modules.csv')
