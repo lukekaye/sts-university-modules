@@ -42,6 +42,9 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info('preprocessing ../data/raw/modules.csv')
 
+    # this needs to be set else the output .pkl files will save with truncated values in cells
+    pd.set_option('display.max_colwidth', None)
+
     # load modules.csv; despite the data being stored as comma-separated values, the data is separated by semicolons
     modules_path = project_dir.joinpath('data/raw/modules.csv')
     modules_raw = pd.read_csv(modules_path, sep = ';')
