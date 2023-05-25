@@ -36,8 +36,8 @@ def clean_text(document):
 def main():
     '''
     Preprocesses raw modules.csv in ../raw
-    Preprocessing primarily concerned with data cleaning
-    Output saved as x,in ../interim.
+    Primarily concerned with dropping uninteresting fields, text cleaning and merging duplicate modules
+    Output saved as metadata.pkl and features.pkl, to ../interim
     '''
     logger = logging.getLogger(__name__)
     logger.info('preprocessing ../data/raw/modules.csv')
@@ -168,13 +168,8 @@ def main():
                                         'IntendedKnowledgeOutcomes_clean': 'IntendedKnowledgeOutcomes',
                                         'IntendedSkillOutcomes_clean': 'IntendedSkillOutcomes'})
 
-    # merge records that share at least one duplicate text value, retaining longest text value per field
+    # henceforth merge records that share at least one duplicate text value, retaining longest text value per field
     # this procedure takes multiple steps
-
-    # todo: delete these options
-    pd.set_option('display.max_colwidth', 200)
-    pd.set_option('display.max_columns', 200)
-    pd.set_option('display.min_rows', 100)
 
     # get tables of records that have duplications in at least the given field; these tables are not disjoint
     aim_duplicates = features[features.duplicated(subset=['Aims'], keep=False)]
@@ -204,7 +199,7 @@ def main():
                              features['ModuleCode'].rename('RelatedModuleCodes').apply(lambda mod_code: [mod_code])],
                             ignore_index=True)
 
-    # graph theoretic approach: merge ModuleCode lists that share common elements by finding connected components
+    # graph theoretic approach: group ModuleCodes that share common elements by finding connected components
     # build graph
     graph = nx.from_edgelist(itertools.chain.from_iterable(itertools.pairwise(pair) for pair in sorted(all_grouped)))
     graph.add_nodes_from(set.union(*map(set, all_grouped)))
@@ -214,15 +209,46 @@ def main():
     disjoint_modules = [sorted(list(module_codes)) for module_codes in disjoint_modules]
     disjoint_modules = pd.Series(data=sorted(disjoint_modules))
 
-    # join RelatedModuleCodes to text fields, retaining longest value per field per record group
+    # join RelatedModuleCodes to text fields, retaining longest value per text field per record group
+    # create empty dataframe for ModuleCodes grouped by sharing text
+    features_merged = pd.DataFrame(columns = ['ModuleCode', 'Aims', 'OutlineOfSyllabus',
+                                              'IntendedKnowledgeOutcomes', 'IntendedSkillOutcomes'])
+    # iterate through every group in disjoint_modules
+    for module_group in disjoint_modules:
+        # lists for each text field
+        aim_set = []
+        oos_set = []
+        iko_set = []
+        iso_set = []
+        # iterate through each ModuleCode in the current group
+        for module_code in module_group:
+            # get text corresponding to ModuleCode
+            text_values = features[features['ModuleCode'] == module_code][['Aims',
+                                                                           'OutlineOfSyllabus',
+                                                                           'IntendedKnowledgeOutcomes',
+                                                                           'IntendedSkillOutcomes']]
+            # append text to lists, depending on text field
+            aim_set.append(text_values.Aims.to_string(index=False))
+            oos_set.append(text_values.OutlineOfSyllabus.to_string(index=False))
+            iko_set.append(text_values.IntendedKnowledgeOutcomes.to_string(index=False))
+            iso_set.append(text_values.IntendedSkillOutcomes.to_string(index=False))
+        # get record to be appended to features_merged; retains longest string per field to minimise semantic info lost
+        record = [module_group,
+                  max(aim_set, key = len),
+                  max(oos_set, key = len),
+                  max(iko_set, key = len),
+                  max(iso_set, key = len)]
+        # append the record to features_merged
+        features_merged.loc[len(features_merged)] = record
 
-    # create concatenated feature representation; missing values are converted to a blank string for the concatenation
-    # features['Concatenated'] = features.Aims.fillna('') + ' ' + \
-    #                            features.OutlineOfSyllabus.fillna('') + ' ' + \
-    #                            features.IntendedKnowledgeOutcomes.fillna('') + ' ' + \
-    #                            features.IntendedSkillOutcomes.fillna('')
+    # save metadata and features_merged tables to ../data/interim as metadata.pkl and features.pkl
+    metadata_output = project_dir.joinpath('data/interim/metadata.pkl')
+    features_output = project_dir.joinpath('data/interim/features.pkl')
+    metadata.to_pickle(metadata_output)
+    features_merged.to_pickle(features_output)
 
-    logger.info('finished preprocessing ../data/raw/modules.csv, output saved as ../data/interim/modules_pp.pkl')
+    logger.info('finished preprocessing ../data/raw/modules.csv, '
+                'output saved to ../data/interim/ as metadata.pkl and features.pkl')
 
 
 if __name__ == '__main__':
