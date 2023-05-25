@@ -5,6 +5,8 @@ from dotenv import find_dotenv, load_dotenv
 import pandas as pd
 import re
 import contractions
+import itertools
+import networkx as nx
 
 
 def clean_text(document):
@@ -34,8 +36,8 @@ def clean_text(document):
 def main():
     '''
     Preprocesses raw modules.csv in ../raw
-    Deal with IsDummy = True records, discard meaningless fields, standardise string fields and clean natural language
-    Output saved as modules_pp.pkl,in ../interim.
+    Preprocessing primarily concerned with data cleaning
+    Output saved as x,in ../interim.
     '''
     logger = logging.getLogger(__name__)
     logger.info('preprocessing ../data/raw/modules.csv')
@@ -126,9 +128,6 @@ def main():
     modules.CoRequisiteComment = modules.CoRequisiteComment.str.replace('\r', '')
     modules.CoRequisiteComment = modules.CoRequisiteComment.str.replace('\n', ' ')
 
-    # henceforth preprocessing is concerned solely with:
-    # Aims, OutlineOfSyllabus, IntendedKnowledgeOutcomes and IntendedSkillOutcomes (i.e. natural language fields)
-
     # replace short, meaningless natural language values with missing values
     modules.Aims.replace(['Original Summary:'], pd.NA, inplace = True)
     modules.OutlineOfSyllabus.replace(['TBA',
@@ -152,9 +151,76 @@ def main():
     modules['IntendedKnowledgeOutcomes_clean'] = modules.IntendedKnowledgeOutcomes.apply(clean_text)
     modules['IntendedSkillOutcomes_clean'] = modules.IntendedSkillOutcomes.apply(clean_text)
 
-    # save preprocessed data to ../interim for feature building
-    output_path = project_dir.joinpath('data/interim/modules_pp.pkl')
-    modules.to_pickle(output_path)
+    # split modules table into metadata and features tables; ModuleCode and Module_Id are (equivalent) primary keys
+    metadata = modules[['ModuleCode', 'SapObjectId', 'Title', 'MaxCapacity',
+                        'IsNew', 'Semester1Offered', 'Semester1CreditValue', 'Semester2Offered',
+                        'Semester2CreditValue', 'Semester3Offered', 'Semester3CreditValue', 'EctsCreditValue',
+                        'FheqLevel', 'Mode', 'Delivery', 'IsOffered',
+                        'PreRequisiteComment', 'CoRequisiteComment', 'Availability', 'StudyAbroad',
+                        'GraduateSkillsFrameworkApplicable', 'SchoolCode', 'MarkingScale', 'Module_Id',
+                        'TeachingLocation']]
+    features = modules[['ModuleCode', 'Aims_clean', 'OutlineOfSyllabus_clean', 'IntendedKnowledgeOutcomes_clean',
+                        'IntendedSkillOutcomes_clean']]
+
+    # rename text fields in features table
+    features = features.rename(columns={'Aims_clean': 'Aims',
+                                        'OutlineOfSyllabus_clean': 'OutlineOfSyllabus',
+                                        'IntendedKnowledgeOutcomes_clean': 'IntendedKnowledgeOutcomes',
+                                        'IntendedSkillOutcomes_clean': 'IntendedSkillOutcomes'})
+
+    # merge records that share at least one duplicate text value, retaining longest text value per field
+    # this procedure takes multiple steps
+
+    # todo: delete these options
+    pd.set_option('display.max_colwidth', 200)
+    pd.set_option('display.max_columns', 200)
+    pd.set_option('display.min_rows', 100)
+
+    # get tables of records that have duplications in at least the given field; these tables are not disjoint
+    aim_duplicates = features[features.duplicated(subset=['Aims'], keep=False)]
+    oos_duplicates = features[features.duplicated(subset=['OutlineOfSyllabus'], keep=False)]
+    iko_duplicates = features[features.duplicated(subset=['IntendedKnowledgeOutcomes'], keep=False)]
+    iso_duplicates = features[features.duplicated(subset=['IntendedSkillOutcomes'], keep=False)]
+
+    # group ModuleCodes that share values in the given field together, in lists
+    aim_grouped = aim_duplicates.groupby(['Aims'
+                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
+                                                                                   )['RelatedModuleCodes']
+    oos_grouped = oos_duplicates.groupby(['OutlineOfSyllabus'
+                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
+                                                                                   )['RelatedModuleCodes']
+    iko_grouped = iko_duplicates.groupby(['IntendedKnowledgeOutcomes'
+                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
+                                                                                   )['RelatedModuleCodes']
+    iso_grouped = iso_duplicates.groupby(['IntendedSkillOutcomes'
+                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
+                                                                                   )['RelatedModuleCodes']
+
+    # merge the tables of grouped duplications with the full set of singleton list modules
+    all_grouped = pd.concat([aim_grouped,
+                             oos_grouped,
+                             iko_grouped,
+                             iso_grouped,
+                             features['ModuleCode'].rename('RelatedModuleCodes').apply(lambda mod_code: [mod_code])],
+                            ignore_index=True)
+
+    # graph theoretic approach: merge ModuleCode lists that share common elements by finding connected components
+    # build graph
+    graph = nx.from_edgelist(itertools.chain.from_iterable(itertools.pairwise(pair) for pair in sorted(all_grouped)))
+    graph.add_nodes_from(set.union(*map(set, all_grouped)))
+
+    # find connected components and sort
+    disjoint_modules = list(nx.connected_components(graph))
+    disjoint_modules = [sorted(list(module_codes)) for module_codes in disjoint_modules]
+    disjoint_modules = pd.Series(data=sorted(disjoint_modules))
+
+    # join RelatedModuleCodes to text fields, retaining longest value per field per record group
+
+    # create concatenated feature representation; missing values are converted to a blank string for the concatenation
+    # features['Concatenated'] = features.Aims.fillna('') + ' ' + \
+    #                            features.OutlineOfSyllabus.fillna('') + ' ' + \
+    #                            features.IntendedKnowledgeOutcomes.fillna('') + ' ' + \
+    #                            features.IntendedSkillOutcomes.fillna('')
 
     logger.info('finished preprocessing ../data/raw/modules.csv, output saved as ../data/interim/modules_pp.pkl')
 
