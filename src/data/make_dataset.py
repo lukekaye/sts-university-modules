@@ -245,7 +245,7 @@ def main():
         features_merged.loc[len(features_merged)] = record
 
     # replace 'NaN' strings with missing values; these have erroneously appeared during this preprocessing
-    features_merged = features_merged.replace('NaN', pd.NA)
+    features_merged = features_merged.replace(['NaN', '<NA>'], pd.NA)
 
     # save metadata and features_merged tables to ../data/interim as metadata.pkl and features.pkl
     metadata_output = project_dir.joinpath('data/interim/metadata.pkl')
