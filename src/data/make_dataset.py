@@ -5,8 +5,61 @@ from dotenv import find_dotenv, load_dotenv
 import pandas as pd
 import re
 import contractions
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 import itertools
 import networkx as nx
+
+
+def find_similar(corpus_1, corpus_2, corpus_3, corpus_4, module_codes):
+    '''
+    Uses bag-of-words and cosine similarity
+    Group module codes that have cosine similarity >= 0.9 in all given text fields (corpus_x)
+    '''
+    # drop corresponding entries in corpus_x and module_codes Series where any corpus value is missing
+    missing_indices_1 = corpus_1.isna()
+    missing_indices_2 = corpus_2.isna()
+    missing_indices_3 = corpus_3.isna()
+    missing_indices_4 = corpus_4.isna()
+    missing_indices_any = missing_indices_1 + missing_indices_2 + missing_indices_3 + missing_indices_4
+    module_codes = module_codes[~missing_indices_any].reset_index(drop=True)
+    corpus_1 = corpus_1[~missing_indices_any].reset_index(drop=True)
+    corpus_2 = corpus_2[~missing_indices_any].reset_index(drop=True)
+    corpus_3 = corpus_3[~missing_indices_any].reset_index(drop=True)
+    corpus_4 = corpus_4[~missing_indices_any].reset_index(drop=True)
+    # transform documents to bag-of-words representations
+    vectoriser_1 = CountVectorizer()
+    vectoriser_2 = CountVectorizer()
+    vectoriser_3 = CountVectorizer()
+    vectoriser_4 = CountVectorizer()
+    bag_of_words_1 = vectoriser_1.fit_transform(corpus_1)
+    bag_of_words_2 = vectoriser_2.fit_transform(corpus_2)
+    bag_of_words_3 = vectoriser_3.fit_transform(corpus_3)
+    bag_of_words_4 = vectoriser_4.fit_transform(corpus_4)
+    # get cosine similarity matrix of documents
+    similarity_matrix_1 = cosine_similarity(bag_of_words_1)
+    similarity_matrix_2 = cosine_similarity(bag_of_words_2)
+    similarity_matrix_3 = cosine_similarity(bag_of_words_3)
+    similarity_matrix_4 = cosine_similarity(bag_of_words_4)
+    # set diagonal cosine similarities to zero as we are not interested in self-similarities
+    np.fill_diagonal(similarity_matrix_1, 0)
+    np.fill_diagonal(similarity_matrix_2, 0)
+    np.fill_diagonal(similarity_matrix_3, 0)
+    np.fill_diagonal(similarity_matrix_4, 0)
+    # get indices where similarities >= 0.9 in all corpus
+    indices = np.where((similarity_matrix_1 >= 0.9) &
+                       (similarity_matrix_2 >= 0.9) &
+                       (similarity_matrix_3 >= 0.9) &
+                       (similarity_matrix_4 >= 0.9))
+    # convert ModuleCode values to singleton lists
+    module_codes = module_codes.apply(lambda module_code: [module_code])
+    # merge lists of similar ModuleCodes; each merging is given twice, later fixed through connected components
+    similar_modules = module_codes.iloc[indices[0]].reset_index(drop=True).add(
+        module_codes.iloc[indices[1]].reset_index(drop=True)
+    )
+
+    return similar_modules
 
 
 def clean_text(document):
@@ -37,7 +90,7 @@ def main():
     '''
     Preprocesses raw modules.csv in ../raw
     Primarily concerned with dropping uninteresting fields, text cleaning and merging duplicate modules
-    Output saved as metadata.pkl and features.pkl, to ../interim
+    Output saved as metadata.pkl and text.pkl, to ../interim
     '''
     logger = logging.getLogger(__name__)
     logger.info('preprocessing ../data/raw/modules.csv')
@@ -162,44 +215,28 @@ def main():
                         'PreRequisiteComment', 'CoRequisiteComment', 'Availability', 'StudyAbroad',
                         'GraduateSkillsFrameworkApplicable', 'SchoolCode', 'MarkingScale', 'Module_Id',
                         'TeachingLocation']]
-    features = modules[['ModuleCode', 'Aims_clean', 'OutlineOfSyllabus_clean', 'IntendedKnowledgeOutcomes_clean',
-                        'IntendedSkillOutcomes_clean']]
+    text = modules[['ModuleCode', 'Aims_clean', 'OutlineOfSyllabus_clean', 'IntendedKnowledgeOutcomes_clean',
+                    'IntendedSkillOutcomes_clean']]
 
     # rename text fields in features table
-    features = features.rename(columns={'Aims_clean': 'Aims',
-                                        'OutlineOfSyllabus_clean': 'OutlineOfSyllabus',
-                                        'IntendedKnowledgeOutcomes_clean': 'IntendedKnowledgeOutcomes',
-                                        'IntendedSkillOutcomes_clean': 'IntendedSkillOutcomes'})
+    text = text.rename(columns={'Aims_clean': 'Aims',
+                                'OutlineOfSyllabus_clean': 'OutlineOfSyllabus',
+                                'IntendedKnowledgeOutcomes_clean': 'IntendedKnowledgeOutcomes',
+                                'IntendedSkillOutcomes_clean': 'IntendedSkillOutcomes'})
 
-    # henceforth merge records that share at least one duplicate text value, retaining longest text value per field
+    # henceforth merge records based on bag-of-words cosine similarity, retaining longest text value per field
     # this procedure takes multiple steps
 
-    # get tables of records that have duplications in at least the given field; these tables are not disjoint
-    aim_duplicates = features[features.duplicated(subset=['Aims'], keep=False)]
-    oos_duplicates = features[features.duplicated(subset=['OutlineOfSyllabus'], keep=False)]
-    iko_duplicates = features[features.duplicated(subset=['IntendedKnowledgeOutcomes'], keep=False)]
-    iso_duplicates = features[features.duplicated(subset=['IntendedSkillOutcomes'], keep=False)]
+    # group ModuleCodes that have cosine similarity >= 0.9 in all text fields
+    cosine_similar = find_similar(text.Aims,
+                                  text.OutlineOfSyllabus,
+                                  text.IntendedKnowledgeOutcomes,
+                                  text.IntendedSkillOutcomes,
+                                  text.ModuleCode)
 
-    # group ModuleCodes that share values in the given field together, in lists
-    aim_grouped = aim_duplicates.groupby(['Aims'
-                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
-                                                                                   )['RelatedModuleCodes']
-    oos_grouped = oos_duplicates.groupby(['OutlineOfSyllabus'
-                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
-                                                                                   )['RelatedModuleCodes']
-    iko_grouped = iko_duplicates.groupby(['IntendedKnowledgeOutcomes'
-                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
-                                                                                   )['RelatedModuleCodes']
-    iso_grouped = iso_duplicates.groupby(['IntendedSkillOutcomes'
-                                          ])['ModuleCode'].apply(list).reset_index(name='RelatedModuleCodes'
-                                                                                   )['RelatedModuleCodes']
-
-    # merge the tables of grouped duplications with the full set of singleton list modules
-    all_grouped = pd.concat([aim_grouped,
-                             oos_grouped,
-                             iko_grouped,
-                             iso_grouped,
-                             features['ModuleCode'].rename('RelatedModuleCodes').apply(lambda mod_code: [mod_code])],
+    # merge the groupings of cosine similar ModuleCodes with the previous set of grouped ModuleCodes
+    all_grouped = pd.concat([cosine_similar,
+                             text.ModuleCode.apply(lambda module_code: [module_code])],
                             ignore_index=True)
 
     # graph theoretic approach: group ModuleCodes that share common elements by finding connected components
@@ -208,16 +245,16 @@ def main():
     graph.add_nodes_from(set.union(*map(set, all_grouped)))
 
     # find connected components and sort
-    disjoint_modules = list(nx.connected_components(graph))
-    disjoint_modules = [sorted(list(module_codes)) for module_codes in disjoint_modules]
-    disjoint_modules = pd.Series(data=sorted(disjoint_modules))
+    similar_modules = list(nx.connected_components(graph))
+    similar_modules = [sorted(list(module_codes)) for module_codes in similar_modules]
+    similar_modules = pd.Series(data=sorted(similar_modules))
 
-    # join RelatedModuleCodes to text fields, retaining longest value per text field per record group
-    # create empty dataframe for ModuleCodes grouped by sharing text
-    features_merged = pd.DataFrame(columns = ['ModuleCode', 'Aims', 'OutlineOfSyllabus',
-                                              'IntendedKnowledgeOutcomes', 'IntendedSkillOutcomes'])
-    # iterate through every group in disjoint_modules
-    for module_group in disjoint_modules:
+    # join similar_modules to text fields, retaining longest value per text field per record group
+    # create empty dataframe for grouped ModuleCodes with corresponding text
+    text_merged = pd.DataFrame(columns = ['ModuleCode', 'Aims', 'OutlineOfSyllabus',
+                                          'IntendedKnowledgeOutcomes', 'IntendedSkillOutcomes'])
+    # iterate through every group in similar_modules
+    for module_group in similar_modules:
         # lists for each text field
         aim_set = []
         oos_set = []
@@ -226,35 +263,35 @@ def main():
         # iterate through each ModuleCode in the current group
         for module_code in module_group:
             # get text corresponding to ModuleCode
-            text_values = features[features['ModuleCode'] == module_code][['Aims',
-                                                                           'OutlineOfSyllabus',
-                                                                           'IntendedKnowledgeOutcomes',
-                                                                           'IntendedSkillOutcomes']]
+            text_values = text[text['ModuleCode'] == module_code][['Aims',
+                                                                   'OutlineOfSyllabus',
+                                                                   'IntendedKnowledgeOutcomes',
+                                                                   'IntendedSkillOutcomes']]
             # append text to lists, depending on text field
             aim_set.append(text_values.Aims.to_string(index=False))
             oos_set.append(text_values.OutlineOfSyllabus.to_string(index=False))
             iko_set.append(text_values.IntendedKnowledgeOutcomes.to_string(index=False))
             iso_set.append(text_values.IntendedSkillOutcomes.to_string(index=False))
-        # get record to be appended to features_merged; retains longest string per field to minimise semantic info lost
+        # get record to append to text_merged; retains longest string per field to minimise semantic info lost
         record = [module_group,
                   max(aim_set, key = len),
                   max(oos_set, key = len),
                   max(iko_set, key = len),
                   max(iso_set, key = len)]
         # append the record to features_merged
-        features_merged.loc[len(features_merged)] = record
+        text_merged.loc[len(text_merged)] = record
 
     # replace 'NaN' strings with missing values; these have erroneously appeared during this preprocessing
-    features_merged = features_merged.replace(['NaN', '<NA>'], pd.NA)
+    text_merged = text_merged.replace(['NaN', '<NA>'], pd.NA)
 
     # save metadata and features_merged tables to ../data/interim as metadata.pkl and features.pkl
     metadata_output = project_dir.joinpath('data/interim/metadata.pkl')
-    features_output = project_dir.joinpath('data/interim/features.pkl')
+    text_output = project_dir.joinpath('data/interim/text.pkl')
     metadata.to_pickle(metadata_output)
-    features_merged.to_pickle(features_output)
+    text_merged.to_pickle(text_output)
 
     logger.info('finished preprocessing ../data/raw/modules.csv, '
-                'output saved to ../data/interim/ as metadata.pkl and features.pkl')
+                'output saved to ../data/interim/ as metadata.pkl and text.pkl')
 
 
 if __name__ == '__main__':
