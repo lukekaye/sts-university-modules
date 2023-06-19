@@ -12,3 +12,5 @@ contractions
 scikit-learn
 numpy
 networkx
+sentence-transformers
+torch
