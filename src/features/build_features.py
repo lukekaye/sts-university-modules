@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 def main():
     '''
     Creates training and testing partitions and builds features for modelling from cleaned data text.pkl in ../interim
-    Output saved as train.pkl in ../processed and test_unlabelled.csv in ../interim.
+    Output saved as train.pkl in ../processed, test_unlabelled.pkl and test_pairs_unlabelled.csv in ../interim.
     '''
     logger = logging.getLogger(__name__)
     logger.info('building features from ../data/interim/text.pkl')
@@ -35,14 +35,16 @@ def main():
         test_pairs.append(pair)
     test_pairs_series = pd.Series(test_pairs)
 
-    # save train and test tables to ../data/processed and ../data/interim as train.pkl and test_unlabelled.csv, respectively
+    # save train data, test data and test pairs to ../processed and ../interim
     train_output = project_dir.joinpath('data/processed/train.pkl')
-    test_output = project_dir.joinpath('data/interim/test_unlabelled.csv')
+    test_output = project_dir.joinpath('data/interim/test_unlabelled.pkl')
+    test_pairs_output = project_dir.joinpath('data/interim/test_pairs_unlabelled.csv')
     train.to_pickle(train_output)
-    test_pairs_series.to_csv(test_output, sep = ';', index = False)
+    test.to_pickle(test_output)
+    test_pairs_series.to_csv(test_pairs_output, sep = ';', index = False)
 
     logger.info('finished constructing feature partitions from ../data/interim/text.pkl, '
-                'output saved to ../data/processed/ as train.pkl and to ../data/interim as test_unlabelled.csv')
+                'output saved to ../data/processed/ as train.pkl and to ../data/interim as test_unlabelled.pkl and test_unlabelled.csv')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
