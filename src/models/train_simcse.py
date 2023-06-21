@@ -5,16 +5,20 @@ from pathlib import Path
 import pandas as pd
 from sentence_transformers import SentenceTransformer, InputExample
 from sentence_transformers import models, losses
+import torch
 from torch.utils.data import DataLoader
 from datetime import datetime
 
 
 def main():
     '''
-    Trains SimCSE model and saves to ../models
+    Trains SimCSE model backed by Longformer and saves to ../models
     '''
     logger = logging.getLogger(__name__)
     logger.info('training SimCSE model from training data ../data/processed/train.pkl')
+
+    # set pytorch seed for reproducibility
+    torch.manual_seed(1)
 
     # load train.pkl
     train_path = project_dir.joinpath('data/processed/train.pkl')
@@ -23,11 +27,13 @@ def main():
     # model parameters
     data = train['Concatenated']
     model_name = 'allenai/longformer-base-4096'
-    batch_size = 128
+    batch_size = 16 # largest size without running out of memory on a T4 GPU
     num_epochs = 1
 
     # define pre-trained model
-    word_embedding_model = models.Transformer(model_name)
+    # gradient checkpointing reduces memory usage
+    word_embedding_model = models.Transformer(model_name,
+                                              model_args = {'gradient_checkpointing': True})
     pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
     model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
@@ -43,8 +49,9 @@ def main():
     model.fit(
         train_objectives=[(train_dataloader, train_loss)],
         epochs=num_epochs,
-        optimizer_params={'lr': 5e-5},
-        show_progress_bar=True
+        optimizer_params={'lr': 3e-5},
+        show_progress_bar=True,
+        use_amp = True #16-bit training; reduces memory usage
     )
 
     # save model
