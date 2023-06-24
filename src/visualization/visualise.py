@@ -8,9 +8,80 @@ from bertopic import BERTopic
 import numpy as np
 
 
+def generate_visualisations(name, docs, titles, classes, in_path, out_path, embeddings):
+    '''
+    Visualise the given fitted BERTopic model
+    '''
+    # load BERTopic model
+    model_path = project_dir.joinpath(in_path)
+    model = BERTopic.load(model_path)
+
+    # transform training data by fitted BERTopic model
+    topics, probs = model.transform(docs, embeddings)
+
+    # get hierachical representation of topics (for hierarchical visualisation)
+    hierarchical_topics = model.hierarchical_topics(docs)
+
+    # get topics per SchoolCode (for stratified visualisation)
+    topics_per_class = model.topics_per_class(docs, classes = classes)
+
+    # set output directory for visualisations
+    output = project_dir.joinpath(out_path)
+
+    # get number of generated topics (excluding the outlier topic)
+    num_topics = len(np.unique(topics)) - 1
+    
+
+    # VISUALISATION: 2D representation of topics
+    output_topics = output.joinpath(f'visualise_topics_{name}.html')
+    model.visualize_topics(title = f'<b>Intertopic Distance Map {name}</b>').write_html(output_topics)
+
+    # VISUALISATION: 2D representation of documents
+    output_documents = output.joinpath(f'visualise_documents_{name}.html')
+    model.visualize_documents(titles.to_numpy(),
+                              embeddings = embeddings,
+                              title = f'<b>Documents and Topics {name}</b>').write_html(output_documents)
+
+    # VISUALISATION: hierarchical structure of topics
+    output_hierarchy = output.joinpath(f'visualise_hierarchical_topics_{name}.html')
+    model.visualize_hierarchy(hierarchical_topics = hierarchical_topics,
+                              title = f'<b>Hierarchical Clustering {name}</b>').write_html(output_hierarchy)
+
+    # VISUALISATION: hierarchical structure of documents
+    output_hierarchy_documents = output.joinpath(f'visualise_hierarchical_documents_{name}.html')
+    model.visualize_hierarchical_documents(titles.to_numpy(), 
+                                           hierarchical_topics, 
+                                           embeddings = embeddings,
+                                           hide_document_hover = False,
+                                           title = f'<b>Hierarchical Documents and Topics {name}</b>').write_html(output_hierarchy_documents)
+
+    # VISUALISATION: terms representative of topics, per topic
+    output_representative_terms = output.joinpath(f'visualise_representative_terms_{name}.html')
+    model.visualize_barchart(top_n_topics = num_topics,
+                             title = f'Topic Word Scores {name}').write_html(output_representative_terms)
+
+    # VISUALISATION: topic similarity matrix
+    # generate multiple matrices, each with i = 1, 2, ..., 10 similarity clusters
+    for i in range(1, 11):
+      output_similarity_matrix = output.joinpath(f'visualise_similarity_matrix_{i}_clusters_{name}.html')
+      model.visualize_heatmap(top_n_topics = num_topics,
+                              n_clusters = i,
+                              title = f'<b>Similarity Matrix {i} clusters {name}</b>').write_html(output_similarity_matrix)
+
+    # VISUALISATION: term score decline; the importance of terms, per topic
+    output_term_score = output.joinpath(f'visualise_term_score_{name}.html')
+    model.visualize_term_rank(title = f'<b>Term score decline per Topic {name}</b>').write_html(output_term_score)
+
+    # VISUALISATION: topics per university school (SchoolCode)
+    output_topics_per_school = output.joinpath(f'visualise_topics_per_school_{name}.html')
+    model.visualize_topics_per_class(topics_per_class, 
+                                     top_n_topics = num_topics,
+                                     title = f'<b>Topics per Class {name}</b>').write_html(output_topics_per_school)
+
 def main():
     '''
     Graphical visualisation of the BERTopic topic modelling
+    visualisations saved to ../reports/figures/bertopic_x, where x is the fine-tuning model
     '''
     logger = logging.getLogger(__name__)
     logger.info('visualising BERTopic output')
@@ -19,77 +90,38 @@ def main():
     train_path = project_dir.joinpath('data/processed/train.pkl')
     train = pd.read_pickle(train_path)
 
-    # get documents and modulecodes
+    # get documents, ModuleCodes and SchoolCodes
     docs = train['Concatenated']
     titles = train['ModuleCode'].apply(str) # modulecodes now strings instead of lists
     classes = train['SchoolCode']
 
-    # load training data SimCSE document embeddings
-    train_simcse_embeddings_path = project_dir.joinpath('data/processed/train_simcse_embeddings.pkl')
-    with open(train_simcse_embeddings_path, "rb") as embeddings_input:
+    # load training data document embeddings
+    train_embeddings_path = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
+    with open(train_embeddings_path, "rb") as embeddings_input:
       saved_embeddings = pickle.load(embeddings_input)
       train_simcse_embeddings = saved_embeddings['train_simcse_embeddings']
+      train_ct_embeddings = saved_embeddings['train_ct_embeddings']
 
-    # load BERTopic model
-    simcse_bertopic_path = project_dir.joinpath('models/longformer-simcse-bertopic')
-    simcse_bertopic = BERTopic.load(simcse_bertopic_path)
-
-    # transform training data by fitted BERTopic model
-    topics, probs = simcse_bertopic.transform(docs, train_simcse_embeddings)
-
-    # get hierachical representation of topics (for hierarchical visualisation)
-    hierarchical_topics = simcse_bertopic.hierarchical_topics(docs)
-
-    # get topics per SchoolCode (for stratified visualisation)
-    topics_per_class = simcse_bertopic.topics_per_class(docs, classes = classes)
-
-    # set output directory for visualisations
-    output = project_dir.joinpath('reports/figures/bertopic_simcse')
-
-    # get number of generated topics (excluding the outlier topic)
-    num_topics = len(np.unique(topics)) - 1
-    
-
-    # VISUALISATION: 2D representation of topics
-    output_topics = output.joinpath('visualise_topics_simcse.html')
-    simcse_bertopic.visualize_topics().write_html(output_topics)
-
-    # VISUALISATION: 2D representation of documents
-    output_documents = output.joinpath('visualise_documents_simcse.html')
-    simcse_bertopic.visualize_documents(titles.to_numpy(), embeddings = train_simcse_embeddings).write_html(output_documents)
-
-    # VISUALISATION: hierarchical structure of topics
-    output_hierarchy = output.joinpath('visualise_hierarchical_topics_simcse.html')
-    simcse_bertopic.visualize_hierarchy(hierarchical_topics = hierarchical_topics).write_html(output_hierarchy)
-
-    # VISUALISATION: hierarchical structure of documents
-    output_hierarchy_documents = output.joinpath('visualise_hierarchical_documents_simcse.html')
-    simcse_bertopic.visualize_hierarchical_documents(titles.to_numpy(), 
-                                                     hierarchical_topics, 
-                                                     embeddings = train_simcse_embeddings,
-                                                     hide_document_hover = False).write_html(output_hierarchy_documents)
-
-    # VISUALISATION: terms representative of topics, per topic
-    output_representative_terms = output.joinpath('visualise_representative_terms_simcse.html')
-    simcse_bertopic.visualize_barchart(top_n_topics = num_topics).write_html(output_representative_terms)
-
-    # VISUALISATION: topic similarity matrix
-    # generate multiple matrices, each with i = 1, 2, ..., 10 similarity clusters
-    for i in range(1, 11):
-      output_similarity_matrix = output.joinpath(f'visualise_similarity_matrix_{i}_clusters_simcse.html')
-      simcse_bertopic.visualize_heatmap(top_n_topics = num_topics, n_clusters = i).write_html(output_similarity_matrix)
-
-    # VISUALISATION: term score decline; the importance of terms, per topic
-    output_term_score = output.joinpath('visualise_term_score_simcse.html')
-    simcse_bertopic.visualize_term_rank().write_html(output_term_score)
-
-    # VISUALISATION: topics per university school (SchoolCode)
-    output_topics_per_school = output.joinpath('visualise_topics_per_school_simcse.html')
-    simcse_bertopic.visualize_topics_per_class(topics_per_class, 
-                                               top_n_topics = num_topics).write_html(output_topics_per_school)
+    # generate visualisations per fitted model
+    # Longformer-SimCSE
+    generate_visualisations('longformer_simcse',
+                            docs,
+                            titles,
+                            classes,
+                            'models/longformer-simcse-bertopic',
+                            'reports/figures/longformer_simcse_bertopic',
+                            train_simcse_embeddings)
+    # Longformer-CT (with in-batch negatives)
+    generate_visualisations('longformer_ct',
+                            docs,
+                            titles,
+                            classes,
+                            'models/longformer-ct-bertopic',
+                            'reports/figures/longformer_ct_bertopic',
+                            train_ct_embeddings)
                                           
     logger.info('finished visualising BERTopic output, '
-        'output saved to ../reports/figures/bertopic_simcse as 17 .html files')
+                'output saved to ../reports/figures under multiple directories, corresponding to each fine-tuned model')
 
 
 if __name__ == '__main__':
