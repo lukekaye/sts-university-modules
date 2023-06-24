@@ -10,6 +10,16 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import itertools
 import networkx as nx
+from collections import Counter
+
+
+def school_code_merge(school_codes):
+    '''
+    Function to merge SchoolCode lists in records to retain the most frequent SchoolCode
+    Ties are settled by picking the first SchoolCode in the list
+    '''
+    code_counter = Counter(school_codes)
+    return code_counter.most_common()[0][0]  
 
 
 def find_similar(corpus_1, corpus_2, corpus_3, corpus_4, module_codes):
@@ -215,8 +225,8 @@ def main():
                         'PreRequisiteComment', 'CoRequisiteComment', 'Availability', 'StudyAbroad',
                         'GraduateSkillsFrameworkApplicable', 'SchoolCode', 'MarkingScale', 'Module_Id',
                         'TeachingLocation']]
-    text = modules[['ModuleCode', 'Aims_clean', 'OutlineOfSyllabus_clean', 'IntendedKnowledgeOutcomes_clean',
-                    'IntendedSkillOutcomes_clean']]
+    text = modules[['ModuleCode', 'SchoolCode', 'Aims_clean', 'OutlineOfSyllabus_clean', 
+                    'IntendedKnowledgeOutcomes_clean', 'IntendedSkillOutcomes_clean']]
 
     # rename text fields in features table
     text = text.rename(columns={'Aims_clean': 'Aims',
@@ -249,13 +259,15 @@ def main():
     similar_modules = [sorted(list(module_codes)) for module_codes in similar_modules]
     similar_modules = pd.Series(data=sorted(similar_modules))
 
-    # join similar_modules to text fields, retaining longest value per text field per record group
-    # create empty dataframe for grouped ModuleCodes with corresponding text
-    text_merged = pd.DataFrame(columns = ['ModuleCode', 'Aims', 'OutlineOfSyllabus',
+    # join similar_modules to text fields and SchoolCode
+    # retains longest value per text field per record group and all SchoolCodes
+    # create empty dataframe for grouped ModuleCodes with corresponding text and SchoolCodes
+    text_merged = pd.DataFrame(columns = ['ModuleCode', 'SchoolCode', 'Aims', 'OutlineOfSyllabus',
                                           'IntendedKnowledgeOutcomes', 'IntendedSkillOutcomes'])
     # iterate through every group in similar_modules
     for module_group in similar_modules:
-        # lists for each text field
+        # lists for each text field and SchoolCode
+        schoolcode_set = []
         aim_set = []
         oos_set = []
         iko_set = []
@@ -263,17 +275,20 @@ def main():
         # iterate through each ModuleCode in the current group
         for module_code in module_group:
             # get text corresponding to ModuleCode
-            text_values = text[text['ModuleCode'] == module_code][['Aims',
+            text_values = text[text['ModuleCode'] == module_code][['SchoolCode',
+                                                                   'Aims',
                                                                    'OutlineOfSyllabus',
                                                                    'IntendedKnowledgeOutcomes',
                                                                    'IntendedSkillOutcomes']]
-            # append text to lists, depending on text field
+            # append text to lists, depending on field
+            schoolcode_set.append(text_values.SchoolCode.to_string(index=False))
             aim_set.append(text_values.Aims.to_string(index=False))
             oos_set.append(text_values.OutlineOfSyllabus.to_string(index=False))
             iko_set.append(text_values.IntendedKnowledgeOutcomes.to_string(index=False))
             iso_set.append(text_values.IntendedSkillOutcomes.to_string(index=False))
         # get record to append to text_merged; retains longest string per field to minimise semantic info lost
         record = [module_group,
+                  schoolcode_set,
                   max(aim_set, key = len),
                   max(oos_set, key = len),
                   max(iko_set, key = len),
@@ -283,6 +298,11 @@ def main():
 
     # replace 'NaN' strings with missing values; these have erroneously appeared during this preprocessing
     text_merged = text_merged.replace(['NaN', '<NA>'], pd.NA)
+
+    # reduce SchoolCode column to be a single item; picks most frequent SchoolCode
+    # if multiple most frequent SchoolCodes, pick the first one
+    # the number of grouped ModuleCodes with multiple SchoolCodes is extremely small, so this simple approach suffices
+    text_merged['SchoolCode'] = text_merged.SchoolCode.apply(school_code_merge)
 
     # save metadata and features_merged tables to ../data/interim as metadata.pkl and features.pkl
     metadata_output = project_dir.joinpath('data/interim/metadata.pkl')
