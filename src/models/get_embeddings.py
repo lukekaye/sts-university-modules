@@ -9,8 +9,10 @@ import pickle
 
 def main():
     '''
-    Use the trained model(s) to generate document embeddings
+    Use the trained model to generate document embeddings for each model
     Embeddings are generated for both training and testing data
+    All fine-tuned models are required for this script to work
+    output saved to ../data/processed as train_document_embeddings.pkl
     '''
 
 
@@ -30,21 +32,29 @@ def main():
     # load our fine-tuned Longformer-SimCSE model
     model_simcse_path = project_dir.joinpath('models/longformer-simcse')
     model_simcse = SentenceTransformer(model_simcse_path)
+    # load our fine-tuned Longformer-CT with in-batch negatives model
+    model_ct_path = project_dir.joinpath('models/longformer-ct')
+    model_ct = SentenceTransformer(model_ct_path)
 
-    # generate document embeddings
+    # generate Longformer-SimCSE document embeddings
     train_simcse_embeddings = model_simcse.encode(sentences = train['Concatenated'].to_numpy(),
                                                   batch_size = 16,
                                                   show_progress_bar = True)
+    # generate Longformer-CT document embeddings
+    train_ct_embeddings = model_ct.encode(sentences = train['Concatenated'].to_numpy(),
+                                          batch_size = 16,
+                                          show_progress_bar = True)
 
     # save document embeddings
-    train_simcse_embeddings_output = project_dir.joinpath('data/processed/train_simcse_embeddings.pkl')
-    with open(train_simcse_embeddings_output, "wb") as output:
-      pickle.dump({'train_simcse_embeddings': train_simcse_embeddings}, 
+    train_embeddings_output = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
+    with open(train_embeddings_output, "wb") as output:
+      pickle.dump({'train_simcse_embeddings': train_simcse_embeddings,
+                   'train_ct_embeddings': train_ct_embeddings}, 
                   output, 
                   protocol = pickle.HIGHEST_PROTOCOL)
 
     logger.info('finished generating document embeddings, '
-                'output saved to ../data/processed/ as train_simcse_embeddings.pkl')
+                'output saved to ../data/processed/ as train_document_embeddings.pkl')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
