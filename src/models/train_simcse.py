@@ -7,7 +7,6 @@ from sentence_transformers import SentenceTransformer, InputExample
 from sentence_transformers import models, losses
 import torch
 from torch.utils.data import DataLoader
-from datetime import datetime
 
 
 def main():
@@ -45,7 +44,7 @@ def main():
     # SimCSE loss
     train_loss = losses.MultipleNegativesRankingLoss(model)
 
-    # fit SimCSE model
+    # fit SimCSE model to training data
     model.fit(
         train_objectives=[(train_dataloader, train_loss)],
         epochs=num_epochs,
@@ -54,8 +53,8 @@ def main():
         use_amp = True #16-bit training; reduces memory usage
     )
 
-    # save model
-    save_path = str(project_dir.joinpath(f'models/longformer-simcse-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'))
+    # save fitted model
+    save_path = str(project_dir.joinpath(f'models/longformer-simcse'))
     model.save(save_path)
 
 
