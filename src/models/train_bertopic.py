@@ -13,7 +13,9 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 def main():
     '''
-    Use generated document embeddings to train BERTopic model(s)
+    Use generated document embeddings to train BERTopic models
+    All fine-tuned model embeddings are required for this script to work
+    output saved to ../models
     '''
     logger = logging.getLogger(__name__)
     logger.info('performing topic modelling using BERTopic')
@@ -22,18 +24,21 @@ def main():
     train_path = project_dir.joinpath('data/processed/train.pkl')
     train = pd.read_pickle(train_path)
 
-    # load training data SimCSE document embeddings
-    train_simcse_embeddings_path = project_dir.joinpath('data/processed/train_simcse_embeddings.pkl')
-    with open(train_simcse_embeddings_path, "rb") as embeddings_input:
+    # load training data document embeddings
+    train_embeddings_path = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
+    with open(train_embeddings_path, "rb") as embeddings_input:
       saved_embeddings = pickle.load(embeddings_input)
       train_simcse_embeddings = saved_embeddings['train_simcse_embeddings']
+      train_ct_embeddings = saved_embeddings['train_ct_embeddings']
 
     # get documents
     docs = train['Concatenated']
 
-    # load our fine-tuned Longformer-SimCSE model
+    # load our fine-tuned models
     model_simcse_path = project_dir.joinpath('models/longformer-simcse')
     model_simcse = SentenceTransformer(model_simcse_path)
+    model_ct_path = project_dir.joinpath('models/longformer-ct')
+    model_ct = SentenceTransformer(model_ct_path)
 
     # parameters for dimensionality reduction (UMAP)
     # the defaults, except random_state is set to 1 for reproducibility
@@ -48,16 +53,23 @@ def main():
     representation_model = KeyBERTInspired(random_state = 1)
 
     # BERTopic c-TF-IDF modelling
-    topic_model = BERTopic(embedding_model = model_simcse,
-                           umap_model = umap_model,
-                           vectorizer_model = vectoriser,
-                           representation_model = representation_model)
-    fitted_topic_model = topic_model.fit(docs, train_simcse_embeddings)
+    # SimCSE, CT with in-batch negatives
+    topic_model_simcse = BERTopic(embedding_model = model_simcse,
+                                  umap_model = umap_model,
+                                  vectorizer_model = vectoriser,
+                                  representation_model = representation_model)
+    topic_model_ct = BERTopic(embedding_model = model_ct,
+                              umap_model = umap_model,
+                              vectorizer_model = vectoriser,
+                              representation_model = representation_model)
+    fitted_topic_model_simcse = topic_model_simcse.fit(docs, train_simcse_embeddings)
+    fitted_topic_model_ct = topic_model_ct.fit(docs, train_ct_embeddings)
 
-    # save fitted BERTopic model
-    save_path = str(project_dir.joinpath(f'models/longformer-simcse-bertopic'))
-    fitted_topic_model.save(save_path, serialization = 'pytorch', save_ctfidf = True)
-
+    # save fitted BERTopic models
+    save_path_simcse = str(project_dir.joinpath(f'models/longformer-simcse-bertopic'))
+    save_path_ct = str(project_dir.joinpath(f'models/longformer-ct-bertopic'))
+    fitted_topic_model_simcse.save(save_path_simcse, serialization = 'pytorch', save_ctfidf = True)
+    fitted_topic_model_ct.save(save_path_ct, serialization = 'pytorch', save_ctfidf = True)
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
