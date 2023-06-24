@@ -14,3 +14,5 @@ numpy
 networkx
 sentence-transformers
 torch
+umap-learn
+bertopic
