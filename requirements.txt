@@ -16,3 +16,5 @@ sentence-transformers
 torch
 umap-learn
 bertopic
+octis
+nltk
