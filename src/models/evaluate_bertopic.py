@@ -64,8 +64,9 @@ def main():
     train_embeddings_path = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
     with open(train_embeddings_path, "rb") as embeddings_input:
         saved_embeddings = pickle.load(embeddings_input)
-        train_simcse_embeddings = saved_embeddings['train_simcse_embeddings']
-        train_ct_embeddings = saved_embeddings['train_ct_embeddings']
+        train_longformer_simcse_embeddings = saved_embeddings['train_longformer_simcse_embeddings']
+        train_longformer_ct_embeddings = saved_embeddings['train_longformer_ct_embeddings']
+        train_bigbird_tsdae_embeddings = saved_embeddings['train_bigbird_tsdae_embeddings']
 
     # create DataFrame to store evaluation metric scores
     topic_metrics = pd.DataFrame(columns = ['Model', 'Topic Diversity', 'Topic Coherence (NPMI)'])
@@ -77,13 +78,19 @@ def main():
                                              train['Concatenated'],
                                              tokenised_corpus,
                                              'models/longformer-simcse-bertopic',
-                                             train_simcse_embeddings))
+                                             train_longformer_simcse_embeddings))
     # Longformer-CT
     topic_scores.append(evaluate_topic_model('Longformer-CT-BERTopic',
                                              train['Concatenated'],
                                              tokenised_corpus,
                                              'models/longformer-ct-bertopic',
-                                             train_ct_embeddings))
+                                             train_longformer_ct_embeddings))
+    # BigBird-TSDAE
+    topic_scores.append(evaluate_topic_model('BigBird-TSDAE-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/bigbird-tsdae-bertopic',
+                                             train_bigbird_tsdae_embeddings))
 
     # append topic model scores to DataFrame
     for scores in topic_scores:
