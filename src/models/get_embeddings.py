@@ -30,26 +30,34 @@ def main():
     train = pd.read_pickle(train_path)
 
     # load our fine-tuned Longformer-SimCSE model
-    model_simcse_path = project_dir.joinpath('models/longformer-simcse')
-    model_simcse = SentenceTransformer(model_simcse_path)
+    model_longformer_simcse_path = project_dir.joinpath('models/longformer-simcse')
+    model_longformer_simcse = SentenceTransformer(model_longformer_simcse_path)
     # load our fine-tuned Longformer-CT with in-batch negatives model
-    model_ct_path = project_dir.joinpath('models/longformer-ct')
-    model_ct = SentenceTransformer(model_ct_path)
+    model_longformer_ct_path = project_dir.joinpath('models/longformer-ct')
+    model_longformer_ct = SentenceTransformer(model_longformer_ct_path)
+    # load our fine-tuned BigBird-TSDAE model
+    model_bigbird_tsdae_path = project_dir.joinpath('models/bigbird-tsdae')
+    model_bigbird_tsdae = SentenceTransformer(model_bigbird_tsdae_path)
 
     # generate Longformer-SimCSE document embeddings
-    train_simcse_embeddings = model_simcse.encode(sentences = train['Concatenated'].to_numpy(),
-                                                  batch_size = 16,
-                                                  show_progress_bar = True)
+    train_longformer_simcse_embeddings = model_longformer_simcse.encode(sentences = train['Concatenated'].to_numpy(),
+                                                                        batch_size = 16,
+                                                                        show_progress_bar = True)
     # generate Longformer-CT document embeddings
-    train_ct_embeddings = model_ct.encode(sentences = train['Concatenated'].to_numpy(),
-                                          batch_size = 16,
-                                          show_progress_bar = True)
+    train_longformer_ct_embeddings = model_longformer_ct.encode(sentences = train['Concatenated'].to_numpy(),
+                                                                batch_size = 16,
+                                                                show_progress_bar = True)
+    # generate Longformer-CT document embeddings
+    train_bigbird_tsdae_embeddings = model_bigbird_tsdae.encode(sentences = train['Concatenated'].to_numpy(),
+                                                                batch_size = 16,
+                                                                show_progress_bar = True)
 
     # save document embeddings
     train_embeddings_output = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
     with open(train_embeddings_output, "wb") as output:
-      pickle.dump({'train_simcse_embeddings': train_simcse_embeddings,
-                   'train_ct_embeddings': train_ct_embeddings}, 
+      pickle.dump({'train_longformer_simcse_embeddings': train_longformer_simcse_embeddings,
+                   'train_longformer_ct_embeddings': train_longformer_ct_embeddings,
+                   'train_bigbird_tsdae_embeddings': train_bigbird_tsdae_embeddings}, 
                   output, 
                   protocol = pickle.HIGHEST_PROTOCOL)
 
