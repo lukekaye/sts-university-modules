@@ -81,7 +81,7 @@ def generate_visualisations(name, docs, titles, classes, in_path, out_path, embe
 def main():
     '''
     Graphical visualisation of the BERTopic topic modelling
-    visualisations saved to ../reports/figures/bertopic_x, where x is the fine-tuning model
+    visualisations saved to ../reports/figures/
     '''
     logger = logging.getLogger(__name__)
     logger.info('visualising BERTopic output')
@@ -99,29 +99,38 @@ def main():
     train_embeddings_path = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
     with open(train_embeddings_path, "rb") as embeddings_input:
       saved_embeddings = pickle.load(embeddings_input)
-      train_simcse_embeddings = saved_embeddings['train_simcse_embeddings']
-      train_ct_embeddings = saved_embeddings['train_ct_embeddings']
+      train_longformer_simcse_embeddings = saved_embeddings['train_longformer_simcse_embeddings']
+      train_longformer_ct_embeddings = saved_embeddings['train_longformer_ct_embeddings']
+      train_bigbird_tsdae_embeddings = saved_embeddings['train_bigbird_tsdae_embeddings']
 
     # generate visualisations per fitted model
-    # Longformer-SimCSE
-    generate_visualisations('longformer_simcse',
+    # Longformer-SimCSE-BERTopic
+    generate_visualisations('longformer_simcse_bertopic',
                             docs,
                             titles,
                             classes,
                             'models/longformer-simcse-bertopic',
                             'reports/figures/longformer_simcse_bertopic',
-                            train_simcse_embeddings)
-    # Longformer-CT (with in-batch negatives)
-    generate_visualisations('longformer_ct',
+                            train_longformer_simcse_embeddings)
+    # Longformer-CT (with in-batch negatives) - BERTopic
+    generate_visualisations('longformer_ct_bertopic',
                             docs,
                             titles,
                             classes,
                             'models/longformer-ct-bertopic',
                             'reports/figures/longformer_ct_bertopic',
-                            train_ct_embeddings)
+                            train_longformer_ct_embeddings)
+    # BigBird-TSDAE-BERTopic
+    generate_visualisations('bigbird_tsdae_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/bigbird-tsdae-bertopic',
+                            'reports/figures/bigbird_tsdae_bertopic',
+                            train_bigbird_tsdae_embeddings)
                                           
     logger.info('finished visualising BERTopic output, '
-                'output saved to ../reports/figures under multiple directories, corresponding to each fine-tuned model')
+                'output saved to ../reports/figures under multiple directories, corresponding to each topic model')
 
 
 if __name__ == '__main__':
