@@ -14,7 +14,7 @@ def main():
     Trains SimCSE model backed by Longformer and saves to ../models
     '''
     logger = logging.getLogger(__name__)
-    logger.info('training SimCSE model from training data ../data/processed/train.pkl')
+    logger.info('training Longformer-SimCSE model from training data ../data/processed/train.pkl')
 
     # set pytorch seed for reproducibility
     torch.manual_seed(1)
