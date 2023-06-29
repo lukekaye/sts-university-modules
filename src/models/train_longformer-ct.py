@@ -15,7 +15,7 @@ def main():
     Using in-batch negatives slightly improves performance of CT
     '''
     logger = logging.getLogger(__name__)
-    logger.info('training CT with in-batch negatives model from training data ../data/processed/train.pkl')
+    logger.info('training Longformer-CT with in-batch negatives model from training data ../data/processed/train.pkl')
 
     # set pytorch seed for reproducibility
     torch.manual_seed(1)
