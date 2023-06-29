@@ -64,15 +64,32 @@ def main():
     train_embeddings_path = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
     with open(train_embeddings_path, "rb") as embeddings_input:
         saved_embeddings = pickle.load(embeddings_input)
+        train_longformer_embeddings = saved_embeddings['train_longformer_embeddings']
+        train_bigbird_embeddings = saved_embeddings['train_bigbird_embeddings']
         train_longformer_simcse_embeddings = saved_embeddings['train_longformer_simcse_embeddings']
         train_longformer_ct_embeddings = saved_embeddings['train_longformer_ct_embeddings']
+        train_bigbird_simcse_embeddings = saved_embeddings['train_bigbird_simcse_embeddings']
+        train_bigbird_ct_embeddings = saved_embeddings['train_bigbird_ct_embeddings']
         train_bigbird_tsdae_embeddings = saved_embeddings['train_bigbird_tsdae_embeddings']
+
 
     # create DataFrame to store evaluation metric scores
     topic_metrics = pd.DataFrame(columns = ['Model', 'Topic Diversity', 'Topic Coherence (NPMI)'])
     topic_scores = []
 
     # evaluate topic models
+    # Longformer
+    topic_scores.append(evaluate_topic_model('Longformer-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/longformer-bertopic',
+                                             train_longformer_embeddings))
+    # BigBird
+    topic_scores.append(evaluate_topic_model('BigBird-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/bigbird-bertopic',
+                                             train_bigbird_embeddings))
     # Longformer-SimCSE
     topic_scores.append(evaluate_topic_model('Longformer-SimCSE-BERTopic',
                                              train['Concatenated'],
@@ -85,6 +102,18 @@ def main():
                                              tokenised_corpus,
                                              'models/longformer-ct-bertopic',
                                              train_longformer_ct_embeddings))
+    # BigBird-SimCSE
+    topic_scores.append(evaluate_topic_model('BigBird-SimCSE-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/bigbird-simcse-bertopic',
+                                             train_bigbird_simcse_embeddings))
+    # BigBird-CT
+    topic_scores.append(evaluate_topic_model('BigBird-CT-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/bigbird-ct-bertopic',
+                                             train_bigbird_ct_embeddings))
     # BigBird-TSDAE
     topic_scores.append(evaluate_topic_model('BigBird-TSDAE-BERTopic',
                                              train['Concatenated'],
