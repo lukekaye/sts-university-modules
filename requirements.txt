@@ -18,3 +18,4 @@ umap-learn
 bertopic
 octis
 nltk
+gensim
