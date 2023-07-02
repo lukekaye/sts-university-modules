@@ -8,6 +8,47 @@ from bertopic import BERTopic
 from octis.evaluation_metrics.diversity_metrics import TopicDiversity
 from octis.evaluation_metrics.coherence_metrics import Coherence
 from nltk.tokenize import RegexpTokenizer
+from sklearn.feature_extraction.text import CountVectorizer
+import numpy as np
+
+
+def get_diversity_and_coherence(significant_words, tokenised_corpus):
+    '''
+    Return the Topic Diversity and Topic Coherence (NPMI) for a given set of sets of words and a tokenised corpus
+    '''
+    # find Topic Diversity
+    topic_diversity = TopicDiversity(topk = 10)
+    topic_diversity_score = round(topic_diversity.score(significant_words), 3)
+
+    # find Topic Coherence
+    topic_coherence = Coherence(texts = tokenised_corpus, topk = 10, measure = 'c_npmi')
+    topic_coherence_score = round(topic_coherence.score(significant_words), 3)
+
+    return topic_diversity_score, topic_coherence_score
+
+
+def evaluate_lda_model(model_name, tokenised_corpus, in_path, vocabulary):
+    '''
+    Evaluate the given fitted LDA model, specifically its Topic Diversity and Topic Coherence
+    Topic Coherence is given by Normalised Pointwise Mutual Information (NPMI)
+    '''
+    # load LDA model
+    model_path = project_dir.joinpath(in_path)
+    with open(model_path, "rb") as model_input:
+        saved_lda_models = pickle.load(model_input)
+        lda = saved_lda_models['best_lda_model']
+
+    # get top-10 most significant words per topic
+    significant_words = []
+    for component in lda.components_:
+        word_ids = np.argsort(component)[::-1][:10]
+        # store the words most relevant to the topic
+        significant_words.append([vocabulary[word] for word in word_ids])
+    significant_words = {'topics': significant_words}
+
+    topic_diversity_score, topic_coherence_score = get_diversity_and_coherence(significant_words, tokenised_corpus)
+
+    return [model_name, topic_diversity_score, topic_coherence_score]
 
 
 def evaluate_topic_model(model_name, documents, tokenised_corpus, in_path, embeddings):
@@ -32,33 +73,37 @@ def evaluate_topic_model(model_name, documents, tokenised_corpus, in_path, embed
     significant_words = significant_words.tolist()
     significant_words = {'topics': significant_words}
 
-    # find Topic Diversity
-    topic_diversity = TopicDiversity(topk = 10)
-    topic_diversity_score = round(topic_diversity.score(significant_words), 3)
-
-    # find Topic Coherence
-    logging.getLogger('gensim.topic_coherence.text_analysis').setLevel(logging.WARNING)
-    topic_coherence = Coherence(texts = tokenised_corpus, topk = 10, measure = 'c_npmi')
-    topic_coherence_score = round(topic_coherence.score(significant_words), 3)
-    logging.getLogger('gensim.topic_coherence.text_analysis').setLevel(logging.INFO)
+    topic_diversity_score, topic_coherence_score = get_diversity_and_coherence(significant_words, tokenised_corpus)
 
     return [model_name, topic_diversity_score, topic_coherence_score]
 
 
 def main():
     '''
-    Evaluate the Topic Diversity and Topic Coherence of all BERTopic models
+    Evaluate the Topic Diversity and Topic Coherence of all topic models
     '''
     logger = logging.getLogger(__name__)
-    logger.info('evaluating BERTopic models (Topic Diversity & Topic Coherence)')
+    logger.info('evaluating topic models (Topic Diversity & Topic Coherence)')
+
+    # suppress INFO flags that cause spam during Topic Coherence evaluation
+    logging.getLogger('gensim.topic_coherence.text_analysis').setLevel(logging.WARNING)
+    logging.getLogger('gensim.corpora.dictionary').setLevel(logging.WARNING)
+    logging.getLogger('gensim.utils').setLevel(logging.WARNING)
+    logging.getLogger('gensim.topic_coherence.probability_estimation').setLevel(logging.WARNING)
 
     # load train.pkl
     train_path = project_dir.joinpath('data/processed/train.pkl')
     train = pd.read_pickle(train_path)
+    train_list = train['Concatenated'].tolist()
 
     # get the tokenised corpus in list of lists form, only retaining alphanumeric characters
     # only retaining alphanumeric characters should make the NPMI score more accurate
     tokenised_corpus = train['Concatenated'].apply(RegexpTokenizer(r'\w+').tokenize).tolist()
+
+    # load and fit bag-of-words vectoriser
+    vectoriser = CountVectorizer(min_df = 2, stop_words = 'english')
+    train_vectorised = vectoriser.fit_transform(train_list)
+    train_vocabulary = vectoriser.get_feature_names()
 
     # load training data document embeddings
     train_embeddings_path = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
@@ -72,12 +117,16 @@ def main():
         train_bigbird_ct_embeddings = saved_embeddings['train_bigbird_ct_embeddings']
         train_bigbird_tsdae_embeddings = saved_embeddings['train_bigbird_tsdae_embeddings']
 
-
     # create DataFrame to store evaluation metric scores
     topic_metrics = pd.DataFrame(columns = ['Model', 'Topic Diversity', 'Topic Coherence (NPMI)'])
     topic_scores = []
 
     # evaluate topic models
+    # LDA
+    topic_scores.append(evaluate_lda_model('LDA_(45_Topics)',
+                                           tokenised_corpus,
+                                           'models/lda_models.pkl',
+                                           train_vocabulary))
     # Longformer
     topic_scores.append(evaluate_topic_model('Longformer-BERTopic',
                                              train['Concatenated'],
@@ -131,6 +180,7 @@ def main():
 
     logger.info('finished evaluating topic models, '
                 'output saved to ../reports/scores/ as topic_evaluation_scores.csv')
+
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
