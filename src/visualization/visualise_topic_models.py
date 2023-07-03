@@ -6,11 +6,37 @@ import pandas as pd
 import pickle
 from bertopic import BERTopic
 import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+import pyLDAvis
+import pyLDAvis.lda_model
+
+
+def generate_visualisations_lda(name, vectorised_corpus, vectoriser, in_path, out_path):
+    '''
+    Visualise the given fitted LDA model
+    Uses Jensen-Shannon Divergence & Principal Coordinate Analysis to represent the embedding-space
+    '''
+    # load LDA model
+    model_path = project_dir.joinpath(in_path)
+    with open(model_path, "rb") as model_input:
+        saved_lda_models = pickle.load(model_input)
+        lda = saved_lda_models['best_lda_model']
+
+    # prepare lda model for visualisation
+    visualisation = pyLDAvis.lda_model.prepare(lda, vectorised_corpus, vectoriser)
+
+    # set output directory for visualisation
+    output = project_dir.joinpath(out_path)
+
+    # save visualisation to file
+    output_pyldavis = output.joinpath(f'visualise_{name}.html')
+    pyLDAvis.save_html(visualisation, str(output_pyldavis))
 
 
 def generate_visualisations(name, docs, titles, classes, in_path, out_path, embeddings):
     '''
     Visualise the given fitted BERTopic model
+    Uses Uniform Manifold Approximation Projection (UMAP) to represent the embedding-space
     '''
     # load BERTopic model
     model_path = project_dir.joinpath(in_path)
@@ -80,22 +106,28 @@ def generate_visualisations(name, docs, titles, classes, in_path, out_path, embe
                                      top_n_topics = num_topics,
                                      title = f'<b>Topics per Class {name}</b>').write_html(output_topics_per_school)
 
+
 def main():
     '''
-    Graphical visualisation of the BERTopic topic modelling
+    Graphical visualisation of the topic models
     visualisations saved to ../reports/figures/
     '''
     logger = logging.getLogger(__name__)
-    logger.info('visualising BERTopic output')
+    logger.info('visualising topic modelling output')
 
     # load train.pkl
     train_path = project_dir.joinpath('data/processed/train.pkl')
     train = pd.read_pickle(train_path)
+    train_list = train['Concatenated'].tolist()
 
     # get documents, ModuleCodes and SchoolCodes
     docs = train['Concatenated']
     titles = train['ModuleCode'].apply(str) # modulecodes now strings instead of lists
     classes = train['SchoolCode']
+
+    # load and fit bag-of-words vectoriser
+    vectoriser = CountVectorizer(min_df = 2, stop_words = 'english')
+    train_vectorised = vectoriser.fit_transform(train_list)
 
     # load training data document embeddings
     train_embeddings_path = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
@@ -110,6 +142,12 @@ def main():
         train_bigbird_tsdae_embeddings = saved_embeddings['train_bigbird_tsdae_embeddings']
 
     # generate visualisations per fitted model
+    # LDA
+    generate_visualisations_lda('LDA_(45_Topics)',
+                                train_vectorised,
+                                vectoriser,
+                                'models/lda_models.pkl',
+                                'reports/figures/lda_45_topics')
     # Longformer-BERTopic
     generate_visualisations('longformer_bertopic',
                             docs,
@@ -167,7 +205,7 @@ def main():
                             'reports/figures/bigbird_tsdae_bertopic',
                             train_bigbird_tsdae_embeddings)
                                           
-    logger.info('finished visualising BERTopic output, '
+    logger.info('finished visualising topic modelling output, '
                 'output saved to ../reports/figures under multiple directories, corresponding to each topic model')
 
 
