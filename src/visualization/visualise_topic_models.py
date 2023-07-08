@@ -37,6 +37,7 @@ def generate_visualisations(name, docs, titles, classes, in_path, out_path, embe
     '''
     Visualise the given fitted BERTopic model
     Uses Uniform Manifold Approximation Projection (UMAP) to represent the embedding-space
+    All visualisations are saved to file
     '''
     # load BERTopic model
     model_path = project_dir.joinpath(in_path)
@@ -74,7 +75,8 @@ def generate_visualisations(name, docs, titles, classes, in_path, out_path, embe
                               title = f'<b>Hierarchical Clustering {name}</b>').write_html(output_hierarchy)
 
     # VISUALISATION: hierarchical structure of documents
-    # skip this visualisation for Longformer-BERTopic (broken for some reason)
+    # skip this visualisation for Longformer-BERTopic (broken)
+    # possibly broken for Longformer-BERTopic due to the low number of topics found
     if not name == 'longformer_bertopic':
         output_hierarchy_documents = output.joinpath(f'visualise_hierarchical_documents_{name}.html')
         model.visualize_hierarchical_documents(titles.to_numpy(), 
@@ -135,19 +137,30 @@ def main():
         saved_embeddings = pickle.load(embeddings_input)
         train_longformer_embeddings = saved_embeddings['train_longformer_embeddings']
         train_bigbird_embeddings = saved_embeddings['train_bigbird_embeddings']
+        train_distilroberta_embeddings = saved_embeddings['train_distilroberta_embeddings']
+        train_all_distilroberta_embeddings = saved_embeddings['train_all_distilroberta_embeddings']
         train_longformer_simcse_embeddings = saved_embeddings['train_longformer_simcse_embeddings']
         train_longformer_ct_embeddings = saved_embeddings['train_longformer_ct_embeddings']
         train_bigbird_simcse_embeddings = saved_embeddings['train_bigbird_simcse_embeddings']
         train_bigbird_ct_embeddings = saved_embeddings['train_bigbird_ct_embeddings']
         train_bigbird_tsdae_embeddings = saved_embeddings['train_bigbird_tsdae_embeddings']
+        train_distilroberta_simcse_embeddings = saved_embeddings['train_distilroberta_simcse_embeddings']
+        train_distilroberta_ct_embeddings = saved_embeddings['train_distilroberta_ct_embeddings']
+        train_distilroberta_tsdae_embeddings = saved_embeddings['train_distilroberta_tsdae_embeddings']
+        train_all_distilroberta_simcse_embeddings = saved_embeddings['train_all_distilroberta_simcse_embeddings']
+        train_all_distilroberta_ct_embeddings = saved_embeddings['train_all_distilroberta_ct_embeddings']
+        train_all_distilroberta_tsdae_embeddings = saved_embeddings['train_all_distilroberta_tsdae_embeddings']
+
 
     # generate visualisations per fitted model
+
     # LDA
     generate_visualisations_lda('LDA_(45_Topics)',
                                 train_vectorised,
                                 vectoriser,
                                 'models/lda_models.pkl',
                                 'reports/figures/lda_45_topics')
+
     # Longformer-BERTopic
     generate_visualisations('longformer_bertopic',
                             docs,
@@ -164,6 +177,23 @@ def main():
                             'models/bigbird-bertopic',
                             'reports/figures/bigbird_bertopic',
                             train_bigbird_embeddings)
+    # DistilRoBERTa-BERTopic
+    generate_visualisations('distilroberta_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/distilroberta-bertopic',
+                            'reports/figures/distilroberta_bertopic',
+                            train_distilroberta_embeddings)
+    # all_DistilRoBERTa-BERTopic
+    generate_visualisations('all_distilroberta_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/all_distilroberta-bertopic',
+                            'reports/figures/all_distilroberta_bertopic',
+                            train_all_distilroberta_embeddings)
+
     # Longformer-SimCSE-BERTopic
     generate_visualisations('longformer_simcse_bertopic',
                             docs,
@@ -180,6 +210,7 @@ def main():
                             'models/longformer-ct-bertopic',
                             'reports/figures/longformer_ct_bertopic',
                             train_longformer_ct_embeddings)
+
     # BigBird-SimCSE-BERTopic
     generate_visualisations('bigbird_simcse_bertopic',
                             docs,
@@ -204,6 +235,57 @@ def main():
                             'models/bigbird-tsdae-bertopic',
                             'reports/figures/bigbird_tsdae_bertopic',
                             train_bigbird_tsdae_embeddings)
+
+    # DistilRoBERTa-SimCSE-BERTopic
+    generate_visualisations('distilroberta_simcse_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/distilroberta-simcse-bertopic',
+                            'reports/figures/distilroberta_simcse_bertopic',
+                            train_distilroberta_simcse_embeddings)
+    # DistilRoBERTa-CT-BERTopic
+    generate_visualisations('distilroberta_ct_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/distilroberta-ct-bertopic',
+                            'reports/figures/distilroberta_ct_bertopic',
+                            train_distilroberta_ct_embeddings)
+    # DistilRoBERTa-TSDAE-BERTopic
+    generate_visualisations('distilroberta_tsdae_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/distilroberta-tsdae-bertopic',
+                            'reports/figures/distilroberta_tsdae_bertopic',
+                            train_distilroberta_tsdae_embeddings)
+
+    # all_DistilRoBERTa-SimCSE-BERTopic
+    generate_visualisations('all_distilroberta_simcse_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/all_distilroberta-simcse-bertopic',
+                            'reports/figures/all_distilroberta_simcse_bertopic',
+                            train_all_distilroberta_simcse_embeddings)
+    # all_DistilRoBERTa-CT-BERTopic
+    generate_visualisations('all_distilroberta_ct_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/all_distilroberta-ct-bertopic',
+                            'reports/figures/all_distilroberta_ct_bertopic',
+                            train_all_distilroberta_ct_embeddings)
+    # all_DistilRoBERTa-TSDAE-BERTopic
+    generate_visualisations('all_distilroberta_tsdae_bertopic',
+                            docs,
+                            titles,
+                            classes,
+                            'models/all_distilroberta-tsdae-bertopic',
+                            'reports/figures/all_distilroberta_tsdae_bertopic',
+                            train_all_distilroberta_tsdae_embeddings)
+
                                           
     logger.info('finished visualising topic modelling output, '
                 'output saved to ../reports/figures under multiple directories, corresponding to each topic model')
