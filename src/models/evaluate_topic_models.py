@@ -111,22 +111,33 @@ def main():
         saved_embeddings = pickle.load(embeddings_input)
         train_longformer_embeddings = saved_embeddings['train_longformer_embeddings']
         train_bigbird_embeddings = saved_embeddings['train_bigbird_embeddings']
+        train_distilroberta_embeddings = saved_embeddings['train_distilroberta_embeddings']
+        train_all_distilroberta_embeddings = saved_embeddings['train_all_distilroberta_embeddings']
         train_longformer_simcse_embeddings = saved_embeddings['train_longformer_simcse_embeddings']
         train_longformer_ct_embeddings = saved_embeddings['train_longformer_ct_embeddings']
         train_bigbird_simcse_embeddings = saved_embeddings['train_bigbird_simcse_embeddings']
         train_bigbird_ct_embeddings = saved_embeddings['train_bigbird_ct_embeddings']
         train_bigbird_tsdae_embeddings = saved_embeddings['train_bigbird_tsdae_embeddings']
+        train_distilroberta_simcse_embeddings = saved_embeddings['train_distilroberta_simcse_embeddings']
+        train_distilroberta_ct_embeddings = saved_embeddings['train_distilroberta_ct_embeddings']
+        train_distilroberta_tsdae_embeddings = saved_embeddings['train_distilroberta_tsdae_embeddings']
+        train_all_distilroberta_simcse_embeddings = saved_embeddings['train_all_distilroberta_simcse_embeddings']
+        train_all_distilroberta_ct_embeddings = saved_embeddings['train_all_distilroberta_ct_embeddings']
+        train_all_distilroberta_tsdae_embeddings = saved_embeddings['train_all_distilroberta_tsdae_embeddings']
 
     # create DataFrame to store evaluation metric scores
     topic_metrics = pd.DataFrame(columns = ['Model', 'Topic Diversity', 'Topic Coherence (NPMI)'])
     topic_scores = []
 
+
     # evaluate topic models
+
     # LDA
     topic_scores.append(evaluate_lda_model('LDA_(45_Topics)',
                                            tokenised_corpus,
                                            'models/lda_models.pkl',
                                            train_vocabulary))
+
     # Longformer
     topic_scores.append(evaluate_topic_model('Longformer-BERTopic',
                                              train['Concatenated'],
@@ -139,6 +150,19 @@ def main():
                                              tokenised_corpus,
                                              'models/bigbird-bertopic',
                                              train_bigbird_embeddings))
+    # DistilRoBERTa
+    topic_scores.append(evaluate_topic_model('DistilRoBERTa-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/distilroberta-bertopic',
+                                             train_distilroberta_embeddings))
+    # all_DistilRoBERTa
+    topic_scores.append(evaluate_topic_model('all_DistilRoBERTa-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/all_distilroberta-bertopic',
+                                             train_all_distilroberta_embeddings))
+
     # Longformer-SimCSE
     topic_scores.append(evaluate_topic_model('Longformer-SimCSE-BERTopic',
                                              train['Concatenated'],
@@ -151,6 +175,7 @@ def main():
                                              tokenised_corpus,
                                              'models/longformer-ct-bertopic',
                                              train_longformer_ct_embeddings))
+
     # BigBird-SimCSE
     topic_scores.append(evaluate_topic_model('BigBird-SimCSE-BERTopic',
                                              train['Concatenated'],
@@ -169,6 +194,45 @@ def main():
                                              tokenised_corpus,
                                              'models/bigbird-tsdae-bertopic',
                                              train_bigbird_tsdae_embeddings))
+
+    # DistilRoBERTa-SimCSE
+    topic_scores.append(evaluate_topic_model('DistilRoBERTa-SimCSE-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/distilroberta-simcse-bertopic',
+                                             train_distilroberta_simcse_embeddings))
+    # DistilRoBERTa-CT
+    topic_scores.append(evaluate_topic_model('DistilRoBERTa-CT-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/distilroberta-ct-bertopic',
+                                             train_distilroberta_ct_embeddings))
+    # DistilRoBERTa-TSDAE
+    topic_scores.append(evaluate_topic_model('DistilRoBERTa-TSDAE-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/distilroberta-tsdae-bertopic',
+                                             train_distilroberta_tsdae_embeddings))
+
+    # all_DistilRoBERTa-SimCSE
+    topic_scores.append(evaluate_topic_model('all_DistilRoBERTa-SimCSE-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/all_distilroberta-simcse-bertopic',
+                                             train_all_distilroberta_simcse_embeddings))
+    # all_DistilRoBERTa-CT
+    topic_scores.append(evaluate_topic_model('all_DistilRoBERTa-CT-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/all_distilroberta-ct-bertopic',
+                                             train_all_distilroberta_ct_embeddings))
+    # all_DistilRoBERTa-TSDAE
+    topic_scores.append(evaluate_topic_model('all_DistilRoBERTa-TSDAE-BERTopic',
+                                             train['Concatenated'],
+                                             tokenised_corpus,
+                                             'models/all_distilroberta-tsdae-bertopic',
+                                             train_all_distilroberta_tsdae_embeddings))
+
 
     # append topic model scores to DataFrame
     for scores in topic_scores:
