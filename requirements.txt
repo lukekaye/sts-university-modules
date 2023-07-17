@@ -20,3 +20,4 @@ octis
 nltk
 gensim
 pyLDAvis
+scipy
