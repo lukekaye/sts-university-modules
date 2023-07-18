@@ -1,0 +1,2 @@
+Spearman Rank Correlation Coefficient for doc2vec (average of 10 iterations):
+0.23258080781788237
