@@ -75,24 +75,32 @@ def main():
     test_merged['Text_1_Tokens'] = test_merged['Text_1'].apply(gensim.utils.simple_preprocess)
     test_merged['Text_2_Tokens'] = test_merged['Text_2'].apply(gensim.utils.simple_preprocess)
 
-    # get doc2vec document embeddings for testing documents
-    test_merged['Text_1_doc2vec'] = test_merged['Text_1_Tokens'].apply(model_doc2vec.infer_vector)
-    test_merged['Text_2_doc2vec'] = test_merged['Text_2_Tokens'].apply(model_doc2vec.infer_vector)
+    # due to stochasticity of infer_vector, get the Spearman Rank Correlation 10 times and average it
+    spearman_list = []
+    for i in range(10):
+        # get doc2vec document embeddings for testing documents
+        test_merged['Text_1_doc2vec'] = test_merged['Text_1_Tokens'].apply(model_doc2vec.infer_vector)
+        test_merged['Text_2_doc2vec'] = test_merged['Text_2_Tokens'].apply(model_doc2vec.infer_vector)
 
-    # get cosine scores of doc2vec embeddings
-    cosine_scores_doc2vec = 1 - (paired_cosine_distances(test_merged['Text_1_doc2vec'].tolist(), 
-                                                         test_merged['Text_2_doc2vec'].tolist()))
+        # get cosine scores of doc2vec embeddings
+        cosine_scores_doc2vec = 1 - (paired_cosine_distances(test_merged['Text_1_doc2vec'].tolist(), 
+                                                            test_merged['Text_2_doc2vec'].tolist()))
+        
+        # evaluate Spearman Rank Correlation of cosine similarity on doc2vec with labels
+        spearman_cosine_doc2vec, _ = spearmanr(test_merged['Similarity'].tolist(), cosine_scores_doc2vec)
+        
+        spearman_list.append(spearman_cosine_doc2vec)
     
-    # evaluate Spearman Rank Correlation of cosine similarity on doc2vec with labels
-    spearman_cosine_doc2vec, _ = spearmanr(test_merged['Similarity'].tolist(), cosine_scores_doc2vec)
-  
-    logger.info(f'Spearman Rank Correlation Coefficient for doc2vec: {spearman_cosine_doc2vec}')
+    # average the Spearman Rank Correlations
+    spearman_cosine_doc2vec_avg = sum(spearman_list) / len(spearman_list)
+
+    logger.info(f'Spearman Rank Correlation Coefficient for doc2vec (average of 10 iterations): {spearman_cosine_doc2vec}')
 
     # save calculated Spearman Rank Correlation for doc2vec, to file
     doc2vec_output_path = project_dir.joinpath('reports/scores/similarity_evaluation_results_doc2vec.txt')
     with open(doc2vec_output_path, 'w') as file:
-        file.write('Spearman Rank Correlation Coefficient for doc2vec:\n')
-        file.write(str(spearman_cosine_doc2vec))
+        file.write('Spearman Rank Correlation Coefficient for doc2vec (average of 10 iterations):\n')
+        file.write(str(spearman_cosine_doc2vec_avg))
 
 
     # TRANSFORMER EVALUATION
