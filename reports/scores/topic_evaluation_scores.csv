@@ -1,9 +1,17 @@
 Model;Topic Diversity;Topic Coherence (NPMI)
 LDA_(45_Topics);0.64;0.041
 Longformer-BERTopic;0.88;-0.016
-BigBird-BERTopic;0.673;-0.169
-Longformer-SimCSE-BERTopic;0.623;-0.135
-Longformer-CT-BERTopic;0.64;-0.135
-BigBird-SimCSE-BERTopic;0.677;-0.157
-BigBird-CT-BERTopic;0.69;-0.154
-BigBird-TSDAE-BERTopic;0.694;0.004
+BigBird-BERTopic;0.665;-0.176
+DistilRoBERTa-BERTopic;0.584;-0.16
+all_DistilRoBERTa-BERTopic;0.731;-0.003
+Longformer-SimCSE-BERTopic;0.618;-0.136
+Longformer-CT-BERTopic;0.641;-0.135
+BigBird-SimCSE-BERTopic;0.686;-0.157
+BigBird-CT-BERTopic;0.681;-0.153
+BigBird-TSDAE-BERTopic;0.685;0.006
+DistilRoBERTa-SimCSE-BERTopic;0.63;-0.132
+DistilRoBERTa-CT-BERTopic;0.611;-0.144
+DistilRoBERTa-TSDAE-BERTopic;0.696;-0.123
+all_DistilRoBERTa-SimCSE-BERTopic;0.77;0.008
+all_DistilRoBERTa-CT-BERTopic;0.761;-0.002
+all_DistilRoBERTa-TSDAE-BERTopic;0.545;-0.038
