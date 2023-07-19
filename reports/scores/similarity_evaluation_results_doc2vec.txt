@@ -1,2 +1,10 @@
-Spearman Rank Correlation Coefficient for doc2vec (average of 10 iterations):
-0.23258080781788237
+Spearman Rank Correlation Coefficient for doc2vec (average of 10 iterations),
+for doc2vec models with training epochs 1, 5, 10, 25, 50, 100, 200, 500:
+0.09443794941132325
+0.35176125113138107
+0.32619759553401667
+0.2658813840760711
+0.21992542140014337
+0.21555428031344048
+0.18954444974203602
+0.13268710677352985
