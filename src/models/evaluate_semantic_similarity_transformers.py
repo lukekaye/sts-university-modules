@@ -5,15 +5,10 @@ from pathlib import Path
 import pandas as pd
 from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
 from sentence_transformers import SentenceTransformer, models
-import gensim
-from gensim.models.doc2vec import Doc2Vec
-from sklearn.metrics.pairwise import paired_cosine_distances
-from scipy.stats import spearmanr
-
 
 def main():
     '''
-    Evaluate the Spearman Rank Correlation Coefficient of all embedding models, using the labelled testing data
+    Evaluate the Spearman Rank Correlation Coefficient of Transformer embedding models, using the labelled testing data
     '''
     logger = logging.getLogger(__name__)
     logger.info('evaluating embedding models (Spearman Rank Correlation Coefficient)')
@@ -62,48 +57,6 @@ def main():
                                              test_merged['Similarity'].tolist(),
                                              batch_size = 16,
                                              show_progress_bar = True)
-
-
-    # DOC2VEC EVALUATION
-
-
-    # load doc2vec
-    model_doc2vec_path = str(project_dir.joinpath('models/doc2vec.model'))
-    model_doc2vec = Doc2Vec.load(model_doc2vec_path)
-
-    # tokenise text passages in testing data
-    test_merged['Text_1_Tokens'] = test_merged['Text_1'].apply(gensim.utils.simple_preprocess)
-    test_merged['Text_2_Tokens'] = test_merged['Text_2'].apply(gensim.utils.simple_preprocess)
-
-    # due to stochasticity of infer_vector, get the Spearman Rank Correlation 10 times and average it
-    spearman_list = []
-    for i in range(10):
-        # get doc2vec document embeddings for testing documents
-        test_merged['Text_1_doc2vec'] = test_merged['Text_1_Tokens'].apply(model_doc2vec.infer_vector)
-        test_merged['Text_2_doc2vec'] = test_merged['Text_2_Tokens'].apply(model_doc2vec.infer_vector)
-
-        # get cosine scores of doc2vec embeddings
-        cosine_scores_doc2vec = 1 - (paired_cosine_distances(test_merged['Text_1_doc2vec'].tolist(), 
-                                                            test_merged['Text_2_doc2vec'].tolist()))
-        
-        # evaluate Spearman Rank Correlation of cosine similarity on doc2vec with labels
-        spearman_cosine_doc2vec, _ = spearmanr(test_merged['Similarity'].tolist(), cosine_scores_doc2vec)
-        
-        spearman_list.append(spearman_cosine_doc2vec)
-    
-    # average the Spearman Rank Correlations
-    spearman_cosine_doc2vec_avg = sum(spearman_list) / len(spearman_list)
-
-    logger.info(f'Spearman Rank Correlation Coefficient for doc2vec (average of 10 iterations): {spearman_cosine_doc2vec}')
-
-    # save calculated Spearman Rank Correlation for doc2vec, to file
-    doc2vec_output_path = project_dir.joinpath('reports/scores/similarity_evaluation_results_doc2vec.txt')
-    with open(doc2vec_output_path, 'w') as file:
-        file.write('Spearman Rank Correlation Coefficient for doc2vec (average of 10 iterations):\n')
-        file.write(str(spearman_cosine_doc2vec_avg))
-
-
-    # TRANSFORMER EVALUATION
 
 
     # base models
@@ -197,7 +150,7 @@ def main():
     evaluator(model_all_distilroberta_tsdae, output_path = output_path)
 
     logger.info('finished evaluating embedding models, '
-                'output saved to ../reports/scores as similarity_evaluation_results.csv and similarity_evaluation_results_doc2vec.txt')
+                'output saved to ../reports/scores/similarity_evaluation_results.csv')
 
 
 if __name__ == '__main__':
