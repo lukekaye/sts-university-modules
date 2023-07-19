@@ -10,17 +10,11 @@ import pickle
 def main():
     '''
     Use the pre-trained and fine-tuned models to generate document embeddings
-    Embeddings are generated for both training and testing data
-    All fine-tuned models are required for this script to work
-    output saved to ../data/processed as train_document_embeddings.pkl
+    All fine-tuned models are required for this script to work, including FULLDATA_bigbird-ct
+    output saved to ../data/processed as train_document_embeddings.pkl and fulldata_bigbird-ct-document-embeddings.pkl
     '''
-
-
-    # todo: implement embedding generation for testing data
-
-
     logger = logging.getLogger(__name__)
-    logger.info('generating embeddings for training and testing data in ../data/processed')
+    logger.info('generating embeddings corresponding to fitted models')
 
     # set pytorch seed for reproducibility (might be unnecessary)
     torch.manual_seed(1)
@@ -28,6 +22,13 @@ def main():
     # load train.pkl
     train_path = project_dir.joinpath('data/processed/train.pkl')
     train = pd.read_pickle(train_path)
+
+    # load test_unlabelled.pkl
+    test_path = project_dir.joinpath('data/interim/test_unlabelled.pkl')
+    test = pd.read_pickle(test_path)
+
+    # concatenate train and test data
+    fulldata = pd.concat([train, test])
 
     # base models
 
@@ -94,6 +95,10 @@ def main():
     # load our further fine-tuned all_DistilRoBERTa-TSDAE model
     model_all_distilroberta_tsdae_path = project_dir.joinpath('models/all_distilroberta-tsdae')
     model_all_distilroberta_tsdae = SentenceTransformer(model_all_distilroberta_tsdae_path)
+
+    # load FULLDATA_BigBird-CT
+    model_fulldata_bigbird_ct_path = project_dir.joinpath('models/FULLDATA_bigbird-ct')
+    model_fulldata_bigbird_ct = SentenceTransformer(model_fulldata_bigbird_ct_path)    
 
     # get document embeddings
 
@@ -162,29 +167,40 @@ def main():
                                                                                     batch_size = 16,
                                                                                     show_progress_bar = True)
 
+    # generate FULLDATA_BigBird-CT document embeddings
+    fulldata_bigbird_ct_embeddings = model_fulldata_bigbird_ct.encode(sentences = fulldata['Concatenated'].to_numpy(),
+                                                                      batch_size = 16,
+                                                                      show_progress_bar = True)
+
     # save document embeddings
     train_embeddings_output = project_dir.joinpath('data/processed/train_document_embeddings.pkl')
     with open(train_embeddings_output, "wb") as output:
-      pickle.dump({'train_longformer_embeddings': train_longformer_embeddings,
-                   'train_bigbird_embeddings': train_bigbird_embeddings,
-                   'train_distilroberta_embeddings': train_distilroberta_embeddings,
-                   'train_all_distilroberta_embeddings': train_all_distilroberta_embeddings,
-                   'train_longformer_simcse_embeddings': train_longformer_simcse_embeddings,
-                   'train_longformer_ct_embeddings': train_longformer_ct_embeddings,
-                   'train_bigbird_simcse_embeddings': train_bigbird_simcse_embeddings,
-                   'train_bigbird_ct_embeddings': train_bigbird_ct_embeddings,
-                   'train_bigbird_tsdae_embeddings': train_bigbird_tsdae_embeddings,
-                   'train_distilroberta_simcse_embeddings': train_distilroberta_simcse_embeddings,
-                   'train_distilroberta_ct_embeddings': train_distilroberta_ct_embeddings,
-                   'train_distilroberta_tsdae_embeddings': train_distilroberta_tsdae_embeddings,
-                   'train_all_distilroberta_simcse_embeddings': train_all_distilroberta_simcse_embeddings,
-                   'train_all_distilroberta_ct_embeddings': train_all_distilroberta_ct_embeddings,
-                   'train_all_distilroberta_tsdae_embeddings': train_all_distilroberta_tsdae_embeddings}, 
-                  output, 
-                  protocol = pickle.HIGHEST_PROTOCOL)
+        pickle.dump({'train_longformer_embeddings': train_longformer_embeddings,
+                    'train_bigbird_embeddings': train_bigbird_embeddings,
+                    'train_distilroberta_embeddings': train_distilroberta_embeddings,
+                    'train_all_distilroberta_embeddings': train_all_distilroberta_embeddings,
+                    'train_longformer_simcse_embeddings': train_longformer_simcse_embeddings,
+                    'train_longformer_ct_embeddings': train_longformer_ct_embeddings,
+                    'train_bigbird_simcse_embeddings': train_bigbird_simcse_embeddings,
+                    'train_bigbird_ct_embeddings': train_bigbird_ct_embeddings,
+                    'train_bigbird_tsdae_embeddings': train_bigbird_tsdae_embeddings,
+                    'train_distilroberta_simcse_embeddings': train_distilroberta_simcse_embeddings,
+                    'train_distilroberta_ct_embeddings': train_distilroberta_ct_embeddings,
+                    'train_distilroberta_tsdae_embeddings': train_distilroberta_tsdae_embeddings,
+                    'train_all_distilroberta_simcse_embeddings': train_all_distilroberta_simcse_embeddings,
+                    'train_all_distilroberta_ct_embeddings': train_all_distilroberta_ct_embeddings,
+                    'train_all_distilroberta_tsdae_embeddings': train_all_distilroberta_tsdae_embeddings}, 
+                    output, 
+                    protocol = pickle.HIGHEST_PROTOCOL)
+
+    fulldata_bigbird_ct_embeddings_output = project_dir.joinpath('data/processed/fulldata_bigbird_ct_document_embeddings.pkl')
+    with open(fulldata_bigbird_ct_embeddings_output, "wb") as output:
+        pickle.dump({'fulldata_bigbird_ct_embeddings': fulldata_bigbird_ct_embeddings}, 
+                    output, 
+                    protocol = pickle.HIGHEST_PROTOCOL)
 
     logger.info('finished generating document embeddings, '
-                'output saved to ../data/processed/ as train_document_embeddings.pkl')
+                'output saved to ../data/processed/ as train_document_embeddings.pkl and fulldata_bigbird-ct-document-embeddings.pkl')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
