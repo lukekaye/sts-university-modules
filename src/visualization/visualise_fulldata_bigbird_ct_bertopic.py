@@ -44,6 +44,13 @@ def generate_visualisations(name, docs, titles, classes, in_path, out_path, embe
                               embeddings = embeddings,
                               title = f'<b>Documents and Topics {name}</b>').write_html(output_documents)
 
+    # VISUALISATION: 2D representation of documents (NO LABELS)
+    output_documents = output.joinpath(f'visualise_documents_{name}_NOLABEL.html')
+    model.visualize_documents(titles.to_numpy(),
+                              embeddings = embeddings,
+                              title = f'<b>Documents and Topics {name} NOLABEL</b>',
+                              hide_annotations = True).write_html(output_documents)
+
     # VISUALISATION: hierarchical structure of topics
     output_hierarchy = output.joinpath(f'visualise_hierarchical_topics_{name}.html')
     model.visualize_hierarchy(hierarchical_topics = hierarchical_topics,
