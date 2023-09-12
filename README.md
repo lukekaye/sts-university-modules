@@ -3,6 +3,8 @@ STS University Modules
 
 Analysing Semantic Textual Similarity of university module catalogue entries for linking modules comparable in content.
 
+Dataset and trained models available at: https://doi.org/10.25405/data.ncl.c.6827643.v1
+
 Project Organization
 ------------
 
